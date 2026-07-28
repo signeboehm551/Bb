@@ -1,0 +1,97 @@
+name: 🚀 SEVER AI STV PREMIUM (UBUNTU SSH)
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: '🕐 Thời gian sử dụng'
+        required: false
+        default: '5h40m'
+        type: choice
+        options:
+        - '1h'
+        - '3h' 
+        - '5h40m'
+
+jobs:
+  Premium-SSH-Setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    
+    steps:
+      - name: 🎯 KHỞI ĐỘNG HỆ THỐNG
+        run: |
+          echo -e "\n\e[1;33m🤖 AI STV PREMIUM SSH SERVER\e[0m"
+          echo -e "\e[1;32m⚡ Powered by AI STV\e[0m"
+          echo -e "\e[1;35m🕒 Thời gian: ${{ github.event.inputs.duration }}\e[0m"
+          
+          frames=('⣾' '⣽' '⣻' '⢿' '⡿' '⣟' '⣯' '⣷')
+          for i in {1..10}; do
+            echo -ne "\e[1;34m\r🚀 Đang khởi tạo hệ thống... ${frames[i % 8]}\e[0m"
+            sleep 0.1
+          done
+          echo -e "\e[1;32m\r✅ Hệ thống đã sẵn sàng!                    \e[0m"
+
+      - name: 👤 TẠO TÀI KHOẢN PREMIUM
+        run: |
+          echo -e "\n\e[1;33m👤 ĐANG TẠO TÀI KHOẢN SSH\e[0m"
+          
+          USER_NAME="AISTV-PREMIUM"
+          PASSWORD="TamPc@123"
+          
+          sudo useradd -m -s /bin/bash $USER_NAME
+          echo "$USER_NAME:$PASSWORD" | sudo chpasswd
+          sudo usermod -aG sudo $USER_NAME
+          
+          # Cấu hình SSH cho phép đăng nhập mật khẩu
+          sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+          sudo systemctl restart ssh
+          
+          echo -e "\e[1;32m│ ✅ Đã tạo user mới với mật khẩu: $PASSWORD\e[0m"
+          echo "SSH_USER=$USER_NAME" >> $GITHUB_ENV
+          echo "SSH_PASS=$PASSWORD" >> $GITHUB_ENV
+
+      - name: 🌐 THIẾT LẬP MẠNG PREMIUM
+        env:
+          TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh > /dev/null
+          sudo tailscale up --authkey=$TAILSCALE_AUTH_KEY --hostname=ai-stv-ssh-$GITHUB_RUN_ID
+          IP=$(tailscale ip -4)
+          echo "TAILSCALE_IP=$IP" >> $GITHUB_ENV
+          echo -e "\e[1;32m✅ IP: $IP\e[0m"
+
+      - name: 🎉 THÔNG TIN KẾT NỐI TERMIUS
+        run: |
+          echo -e "\e[1;36m┌───────────────────────────────────────────┐\e[0m"
+          echo -e "\e[1;36m│              🎉 KẾT NỐI THÀNH CÔNG!              │\e[0m"
+          echo -e "\e[1;36m├───────────────────────────────────────────┤\e[0m"
+          echo -e "\e[1;37m│ 🌐  Host/IP: $TAILSCALE_IP\e[0m"
+          echo -e "\e[1;37m│ 👤  Username: $SSH_USER\e[0m"
+          echo -e "\e[1;37m│ 🔐  Password: $SSH_PASS\e[0m"
+          echo -e "\e[1;37m│ 📍  Port: 22\e[0m"
+          echo -e "\e[1;36m└───────────────────────────────────────────┘\e[0m"
+          
+          DURATION="${{ github.event.inputs.duration }}"
+          if [ "$DURATION" = "1h" ]; then TOTAL_MIN=60;
+          elif [ "$DURATION" = "3h" ]; then TOTAL_MIN=180;
+          else TOTAL_MIN=340; fi
+          echo "TOTAL_MINUTES=$TOTAL_MIN" >> $GITHUB_ENV
+
+      - name: ⏳ DUY TRÌ PHIÊN LÀM VIỆC
+        run: |
+          TOTAL_SEC=$((TOTAL_MINUTES * 60))
+          while [ $TOTAL_SEC -gt 0 ]; do
+            H=$((TOTAL_SEC / 3600))
+            M=$(( (TOTAL_SEC % 3600) / 60 ))
+            S=$((TOTAL_SEC % 60))
+            printf "\r\e[1;36m🔄 Còn lại: %dh %dm %ds\e[0m" $H $M $S
+            sleep 10
+            TOTAL_SEC=$((TOTAL_SEC - 10))
+          done
+
+      - name: 🧹 DỌN DẸP HỆ THỐNG
+        if: always()
+        run: |
+          sudo tailscale logout 2>/dev/null || true
+          echo -e "\e[1;32m🎉 Dọn dẹp hoàn tất!\e[0m"
