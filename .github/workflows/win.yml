@@ -1,0 +1,223 @@
+name: 🚀 SEVER AI STV PREMIUM
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: '🕐 Thời gian sử dụng'
+        required: false
+        default: '5h40m'
+        type: choice
+        options:
+        - '1h'
+        - '3h' 
+        - '5h40m'
+
+jobs:
+  Premium-RDP-Setup:
+    runs-on: windows-latest
+    timeout-minutes: 340
+    
+    steps:
+      # BANNER CHÀO MỪNG
+      - name: 🎯 KHỞI ĐỘNG HỆ THỐNG
+        run: |
+          Write-Host ""
+          Write-Host ""
+          Write-Host "🤖 AI STV PREMIUM RDP SERVER" -ForegroundColor Yellow
+          Write-Host "⚡ Powered by AI STV" -ForegroundColor Green
+          Write-Host "🕒 Thời gian: ${{ github.event.inputs.duration }}" -ForegroundColor Magenta
+          Write-Host ""
+          
+          # Hiệu ứng loading
+          $frames = @('⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷')
+          for($i=0; $i -lt 10; $i++) {
+              Write-Host "`r🚀 Đang khởi tạo hệ thống... $($frames[$i % 8])" -NoNewline -ForegroundColor Blue
+              Start-Sleep -Milliseconds 100
+          }
+          Write-Host "`r✅ Hệ thống đã sẵn sàng!                    " -ForegroundColor Green
+
+      # CẤU HÌNH NÂNG CAO
+      - name: 🔧 CẤU HÌNH HỆ THỐNG
+        run: |
+          Write-Host ""
+          Write-Host "🛠️  ĐANG CẤU HÌNH HỆ THỐNG" -ForegroundColor Yellow
+          
+          $steps = @(
+              @{Name="Bật Remote Desktop"; Script={
+                  Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
+              }},
+              @{Name="Tắt xác thực mạng"; Script={
+                  Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
+              }},
+              @{Name="Cấu hình bảo mật RDP"; Script={
+                  Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
+              }},
+              @{Name="Mở port 3389 firewall"; Script={
+                  netsh advfirewall firewall add rule name="RDP-Premium" dir=in action=allow protocol=TCP localport=3389 profile=any
+                  netsh advfirewall firewall add rule name="RDP-Premium-Out" dir=out action=allow protocol=TCP localport=3389 profile=any
+              }},
+              @{Name="Khởi động dịch vụ"; Script={
+                  Set-Service -Name TermService -StartupType Automatic -ErrorAction SilentlyContinue
+                  Start-Service -Name TermService -ErrorAction SilentlyContinue
+              }}
+          )
+          
+          foreach($step in $steps) {
+              Write-Host "│ 📋 $($step.Name)..." -NoNewline -ForegroundColor White
+              try {
+                  & $step.Script
+                  Write-Host "`r│ ✅ $($step.Name)" -ForegroundColor Green
+              } catch {
+                  Write-Host "`r│ ⚠️  $($step.Name) - Đã bỏ qua lỗi nhỏ" -ForegroundColor Yellow
+              }
+              Start-Sleep -Milliseconds 500
+          }
+          Write-Host "🎯 Cấu hình hoàn tất!" -ForegroundColor Green
+
+      # TẠO USER PREMIUM - FIX MẬT KHẨU CỐ ĐỊNH
+      - name: 👤 TẠO TÀI KHOẢN PREMIUM
+        run: |
+          Write-Host ""
+          Write-Host "👤 ĐANG TẠO TÀI KHOẢN PREMIUM" -ForegroundColor Yellow
+          
+          # Đã sửa: Gán mật khẩu bạn yêu cầu
+          $matKhau = "TamPc@123"
+          $securePass = ConvertTo-SecureString $matKhau -AsPlainText -Force
+          
+          try {
+              Remove-LocalUser -Name "AISTV-PREMIUM" -ErrorAction SilentlyContinue
+              Write-Host "│ ✅ Đã xóa user cũ" -ForegroundColor Green
+          } catch {
+              Write-Host "│ ℹ️  Không có user cũ để xóa" -ForegroundColor Blue
+          }
+          
+          try {
+              New-LocalUser -Name "AISTV-PREMIUM" -Password $securePass -AccountNeverExpires -Description "AI STV Premium Account"
+              Set-LocalUser -Name "AISTV-PREMIUM" -PasswordNeverExpires $true
+              Add-LocalGroupMember -Group "Administrators" -Member "AISTV-PREMIUM" -ErrorAction SilentlyContinue
+              Add-LocalGroupMember -Group "Remote Desktop Users" -Member "AISTV-PREMIUM" -ErrorAction SilentlyContinue
+              Enable-LocalUser -Name "AISTV-PREMIUM"
+              Write-Host "│ ✅ Đã cấp quyền Administrator & RDP" -ForegroundColor Green
+          } catch {
+              Write-Host "│ ❌ Lỗi tạo user: $($_.Exception.Message)" -ForegroundColor Red
+              exit 1
+          }
+          
+          echo "RDP_USER=AISTV-PREMIUM" >> $env:GITHUB_ENV
+          echo "RDP_PASS=$matKhau" >> $env:GITHUB_ENV
+          echo "$matKhau" > $env:TEMP\rdp_password.txt
+          Write-Host "✅ Tài khoản: AISTV-PREMIUM đã sẵn sàng" -ForegroundColor Green
+
+      # KIỂM TRA QUYỀN ĐĂNG NHẬP
+      - name: 🔍 KIỂM TRA QUYỀN HỆ THỐNG
+        run: |
+          Write-Host ""
+          Write-Host "🔍 KIỂM TRA QUYỀN ĐĂNG NHẬP" -ForegroundColor Yellow
+          $user = Get-LocalUser -Name "AISTV-PREMIUM" -ErrorAction SilentlyContinue
+          if ($user) {
+              Write-Host "│ ✅ User AISTV-PREMIUM tồn tại" -ForegroundColor Green
+          }
+          $isAdmin = (Get-LocalGroupMember -Group "Administrators" | Where-Object {$_.Name -like "*AISTV-PREMIUM"}).Count -gt 0
+          if ($isAdmin) {
+              Write-Host "│ ✅ Có quyền Administrator" -ForegroundColor Green
+          }
+          Write-Host "🎯 Kiểm tra hoàn tất!" -ForegroundColor Green
+
+      # TAILSCALE PREMIUM
+      - name: 🌐 THIẾT LẬP MẠNG PREMIUM
+        env:
+          TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
+        run: |
+          Write-Host ""
+          Write-Host "🌐 ĐANG THIẾT LẬP KẾT NỐI MẠNG" -ForegroundColor Yellow
+          try {
+              $msiPath = "$env:TEMP\tailscale-premium.msi"
+              Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi" -OutFile $msiPath
+              Start-Process msiexec.exe -ArgumentList "/i", "`"$msiPath`"", "/quiet", "/norestart" -Wait
+              Write-Host "│ ✅ Cài đặt Tailscale thành công" -ForegroundColor Green
+          } catch {
+              Write-Host "│ ❌ Lỗi cài đặt" -ForegroundColor Red
+          }
+          Start-Sleep -Seconds 10
+          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=$env:TAILSCALE_AUTH_KEY --hostname=ai-stv-premium-$env:GITHUB_RUN_ID --accept-routes --reset
+          $ip = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
+          echo "TAILSCALE_IP=$ip" >> $env:GITHUB_ENV
+          Write-Host "✅ Địa chỉ IP: $ip" -ForegroundColor Green
+
+      # HIỂN THỊ GIAO DIỆN
+      - name: 🎉 THÔNG TIN KẾT NỐI
+        run: |
+          $matKhau = Get-Content $env:TEMP\rdp_password.txt -ErrorAction SilentlyContinue
+          $durationInput = "${{ github.event.inputs.duration }}"
+          switch ($durationInput) {
+              "1h" { $totalMinutes = 60; $displayTime = "1 giờ" }
+              "3h" { $totalMinutes = 180; $displayTime = "3 giờ" }
+              "5h40m" { $totalMinutes = 340; $displayTime = "5 giờ 40 phút" }
+          }
+          $timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("SE Asia Standard Time")
+          $thoiGianBatDau = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
+          $thoiGianKetThuc = $thoiGianBatDau.AddMinutes($totalMinutes)
+          
+          Write-Host ""
+          Write-Host "┌───────────────────────────────────────────┐" -ForegroundColor Cyan
+          Write-Host "│              🎉 KẾT NỐI THÀNH CÔNG!              │" -ForegroundColor Cyan
+          Write-Host "├───────────────────────────────────────────┤" -ForegroundColor Cyan
+          Write-Host "│ 🌐  Địa chỉ: $env:TAILSCALE_IP" -ForegroundColor White
+          Write-Host "│ 👤  Tài khoản: AISTV-PREMIUM" -ForegroundColor White
+          Write-Host "│ 🔐  Mật khẩu: $matKhau" -ForegroundColor White
+          Write-Host "│ ⏰  Thời lượng: $displayTime" -ForegroundColor White
+          Write-Host "│ 🕐  Bắt đầu: $($thoiGianBatDau.ToString('HH:mm:ss'))" -ForegroundColor White
+          Write-Host "│ 🕐  Kết thúc: $($thoiGianKetThuc.ToString('HH:mm:ss'))" -ForegroundColor White
+          Write-Host "│ 📍  Port: 3389" -ForegroundColor White
+          Write-Host "├───────────────────────────────────────────┤" -ForegroundColor Cyan
+          Write-Host "│ 💡  Hướng dẫn:                                    │" -ForegroundColor Cyan
+          Write-Host "│   1. Mở Remote Desktop Connection                 │" -ForegroundColor Yellow
+          Write-Host "│   2. Nhập: $env:TAILSCALE_IP                      │" -ForegroundColor Yellow
+          Write-Host "└───────────────────────────────────────────┘" -ForegroundColor Cyan
+          echo "TOTAL_MINUTES=$totalMinutes" >> $env:GITHUB_ENV
+
+      # DUY TRÌ PHIÊN (GIỮ NGUYÊN CODE CŨ CÓ MONITOR CHẠY NGẦM)
+      - name: ⏳ DUY TRÌ PHIÊN LÀM VIỆC
+        run: |
+          $totalMinutes = $env:TOTAL_MINUTES
+          $timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("SE Asia Standard Time")
+          $thoiGianBatDau = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
+          $thoiGianKetThuc = $thoiGianBatDau.AddMinutes($totalMinutes)
+          
+          Write-Host ""
+          Write-Host "🔄 BẮT ĐẦU DUY TRÌ PHIÊN LÀM VIỆC..." -ForegroundColor Yellow
+          
+          # Monitor chạy ngầm kiểm tra dịch vụ mỗi 30s
+          $monitorScript = {
+              while ($true) {
+                  $termService = Get-Service -Name TermService -ErrorAction SilentlyContinue
+                  if ($termService.Status -ne 'Running') {
+                      Start-Service -Name TermService -ErrorAction SilentlyContinue
+                  }
+                  Start-Sleep -Seconds 30
+              }
+          }
+          Start-Job -ScriptBlock $monitorScript -Name "SystemMonitor"
+          
+          $frames = @('⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏')
+          do {
+              $thoiGianHienTai = [System.TimeZoneInfo]::ConvertTimeFromUtc((Get-Date).ToUniversalTime(), $timeZone)
+              $thoiGianConLai = $thoiGianKetThuc - $thoiGianHienTai
+              $frame = $frames[(Get-Date).Second % $frames.Length]
+              
+              if ($thoiGianConLai.TotalSeconds -le 0) { break }
+              
+              Write-Host "`r$frame [$($thoiGianHienTai.ToString('HH:mm:ss'))] Còn lại: $($thoiGianConLai.Hours) giờ $($thoiGianConLai.Minutes) phút" -NoNewline -ForegroundColor Cyan
+              Start-Sleep -Seconds 5
+          } while ($true)
+
+      # DỌN DẸP
+      - name: 🧹 DỌN DẸP HỆ THỐNG
+        if: always()
+        run: |
+          Write-Host ""
+          Write-Host "🧹 ĐANG DỌN DẸP HỆ THỐNG..." -ForegroundColor Yellow
+          Get-Job -Name "SystemMonitor" | Stop-Job -PassThru | Remove-Job -Force
+          & "$env:ProgramFiles\Tailscale\tailscale.exe" down --accept-risk=all -ErrorAction SilentlyContinue
+          Write-Host "🎉 Hoàn tất!" -ForegroundColor Green
